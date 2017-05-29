@@ -1,5 +1,11 @@
 {
-  "extends": "airbnb",
+  "extends": [
+    "airbnb",
+    // "plugin:flowtype/recommended"
+  ],
+  "plugins": [
+    // "flowtype"
+  ],
   "root": true,
   "env": {
     "node": true,
@@ -8,10 +14,12 @@
   "ecmaFeatures": {
     "jsx": true
   },
+  "parser": "babel-eslint",
   "rules": {
     "id-length": 0,
     "new-cap": [2, { "capIsNewExceptions": ["AND"] }],
     "react/jsx-pascal-case": [2, { "allowAllCaps": true }],
+    "no-duplicate-imports": 0,
     "no-underscore-dangle": [2, {
       "allowAfterThis": true,
       "allow": [

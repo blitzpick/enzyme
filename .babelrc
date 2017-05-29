@@ -1,5 +1,5 @@
 {
-  "presets": ["airbnb"],
+  "presets": ["airbnb", "flow"],
   "plugins": [
     ["transform-replace-object-assign", "object.assign"],
   ],
