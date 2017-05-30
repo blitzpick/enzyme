@@ -11,7 +11,7 @@ import {
   containsChildrenSubArray,
   propFromEvent,
   withSetStateAllowed,
-  propsOfNode,
+  // propsOfNode,
   typeOfNode,
   isReactElementAlike,
   displayNameOfNode,
@@ -23,20 +23,32 @@ import {
   debugNodes,
 } from './Debug';
 import {
+  // getTextFromNode,
+  // hasClassName,
+  // childrenOfNode,
+  // parentsOfNode,
+  // treeFilter,
+  // buildPredicate,
+} from './ShallowTraversal';
+import {
+  propsOfNode,
   getTextFromNode,
   hasClassName,
   childrenOfNode,
   parentsOfNode,
   treeFilter,
   buildPredicate,
-} from './ShallowTraversal';
+} from './RSTTraversal';
 import {
-  createShallowRenderer,
+  // createShallowRenderer,
   renderToStaticMarkup,
   batchedUpdates,
   isDOMComponentElement,
 } from './react-compat';
 import { REACT155 } from './version';
+import ReactFifteenAdapter from './adapters/ReactFifteenAdapter';
+
+const adapter = new ReactFifteenAdapter();
 
 /**
  * Finds all nodes in the current wrapper nodes' render trees that match the provided predicate
@@ -109,6 +121,13 @@ function performBatchedUpdates(wrapper, fn) {
   return batchedUpdates(fn);
 }
 
+function getRootNode(node) {
+  if (node.nodeType === 'host') {
+    return node;
+  }
+  return node.rendered;
+}
+
 /**
  * @class ShallowWrapper
  */
@@ -119,11 +138,12 @@ class ShallowWrapper {
     if (!root) {
       this.root = this;
       this.unrendered = nodes;
-      this.renderer = createShallowRenderer();
+      this.renderer = adapter.createRenderer({ mode: 'shallow', ...options });
+      // this.renderer = createShallowRenderer();
       withSetStateAllowed(() => {
         performBatchedUpdates(this, () => {
           this.renderer.render(nodes, options.context);
-          const instance = this.instance();
+          const instance = this.renderer.getNode().instance;
           if (
             options.lifecycleExperimental &&
             instance &&
@@ -133,7 +153,7 @@ class ShallowWrapper {
           }
         });
       });
-      this.node = this.renderer.getRenderOutput();
+      this.node = getRootNode(this.renderer.getNode());
       this.nodes = [this.node];
       this.length = 1;
     } else {
@@ -164,7 +184,8 @@ class ShallowWrapper {
         'ShallowWrapper::getNode() can only be called when wrapping one node',
       );
     }
-    return this.root === this ? this.renderer.getRenderOutput() : this.node;
+    return this.node;
+    // return this.root === this ? getRootNode(this.renderer.getNode()) : this.node;
   }
 
   /**
@@ -173,7 +194,8 @@ class ShallowWrapper {
    * @return {Array<ReactElement>}
    */
   getNodes() {
-    return this.root === this ? [this.renderer.getRenderOutput()] : this.nodes;
+    return this.nodes;
+    // return this.root === this ? [getRootNode(this.renderer.getNode())] : this.nodes;
   }
 
   /**
@@ -193,7 +215,8 @@ class ShallowWrapper {
     if (this.root !== this) {
       throw new Error('ShallowWrapper::instance() can only be called on the root');
     }
-    return this.renderer._instance ? this.renderer._instance._instance : null;
+    return this.renderer.getNode().instance;
+    // return this.renderer._instance ? this.renderer._instance._instance : null;
   }
 
   /**
@@ -209,7 +232,7 @@ class ShallowWrapper {
       throw new Error('ShallowWrapper::update() can only be called on the root');
     }
     this.single('update', () => {
-      this.node = this.renderer.getRenderOutput();
+      this.node = getRootNode(this.renderer.getNode());
       this.nodes = [this.node];
     });
     return this;
@@ -380,10 +403,9 @@ class ShallowWrapper {
         'string or number as argument.',
       );
     }
-
     const predicate = Array.isArray(nodeOrNodes)
-      ? other => containsChildrenSubArray(nodeEqual, other, nodeOrNodes)
-      : other => nodeEqual(nodeOrNodes, other);
+      ? other => containsChildrenSubArray(nodeEqual, other, nodeOrNodes.map(adapter.elementToNode))
+      : other => nodeEqual(adapter.elementToNode(nodeOrNodes), other);
 
     return findWhereUnwrapped(this, predicate).length > 0;
   }
@@ -584,7 +606,7 @@ class ShallowWrapper {
    * @returns {String}
    */
   html() {
-    return this.single('html', n => (this.type() === null ? null : renderToStaticMarkup(n)));
+    return this.single('html', n => (this.type() === null ? null : renderToStaticMarkup(adapter.nodeToElement(n))));
   }
 
   /**
@@ -723,7 +745,7 @@ class ShallowWrapper {
    */
   parents(selector) {
     const allParents = this.wrap(
-        this.single('parents', n => parentsOfNode(n, this.root.getNode())),
+        this.single('parents', n => parentsOfNode(n, this.root.node)),
     );
     return selector ? allParents.filter(selector) : allParents;
   }
@@ -755,7 +777,7 @@ class ShallowWrapper {
    * @returns {ShallowWrapper}
    */
   shallow(options) {
-    return this.single('shallow', n => new ShallowWrapper(n, null, options));
+    return this.single('shallow', n => new ShallowWrapper(adapter.nodeToElement(n), null, options));
   }
 
   /**
@@ -1076,13 +1098,14 @@ class ShallowWrapper {
   dive(options = {}) {
     const name = 'dive';
     return this.single(name, (n) => {
-      if (isDOMComponentElement(n)) {
+      const el = adapter.nodeToElement(n);
+      if (isDOMComponentElement(el)) {
         throw new TypeError(`ShallowWrapper::${name}() can not be called on DOM components`);
       }
-      if (!isCustomComponentElement(n)) {
+      if (!isCustomComponentElement(el)) {
         throw new TypeError(`ShallowWrapper::${name}() can only be called on components`);
       }
-      return new ShallowWrapper(n, null, { ...this.options, ...options });
+      return new ShallowWrapper(el, null, { ...this.options, ...options });
     });
   }
 }

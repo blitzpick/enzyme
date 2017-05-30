@@ -36,21 +36,6 @@ export function isCustomComponentElement(inst) {
 }
 
 export function propsOfNode(node) {
-  if (REACT013 && node && node._store) {
-    return (node._store.props) || {};
-  }
-  if (node && node._reactInternalComponent && node._reactInternalComponent._currentElement) {
-    return (node._reactInternalComponent._currentElement.props) || {};
-  }
-  if (node && node._currentElement) {
-    return (node._currentElement.props) || {};
-  }
-  if (REACT15 && node) {
-    if (internalInstance(node) && internalInstance(node)._currentElement) {
-      return (internalInstance(node)._currentElement.props) || {};
-    }
-  }
-
   return (node && node.props) || {};
 }
 

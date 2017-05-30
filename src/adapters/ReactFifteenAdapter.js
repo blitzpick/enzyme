@@ -4,10 +4,12 @@ import React from 'react';
 import type { Element } from 'react';
 import ReactDOM from 'react-dom';
 import TestUtils from 'react-dom/test-utils';
+import PropTypes from 'prop-types';
 import values from 'object.values';
+import flatten from 'lodash/flatten';
 import type { EnzymeRenderer, RSTNode, RendererOptions } from './types';
 import EnzymeAdapter from './EnzymeAdapter';
-import createWrapperComponent from '../ReactWrapperComponent';
+// import createWrapperComponent from '../ReactWrapperComponent';
 
 function compositeTypeToNodeType(type) {
   switch (type) {
@@ -27,22 +29,28 @@ function instanceToTree(inst): ?RSTNode {
   if (!el) {
     return null;
   }
+  // if (!inst._instance) {
+  //   console.log(inst);
+  // }
   if (inst._renderedChildren) {
     return {
       nodeType: inst._hostNode ? 'host' : compositeTypeToNodeType(inst._compositeType),
       type: el.type,
       props: el.props,
-      instance: inst._instance || null,
+      instance: inst._instance || inst._hostNode || null,
       rendered: values(inst._renderedChildren).map(instanceToTree),
     };
   }
   if (inst._hostNode) {
+    if (typeof el !== 'object') {
+      return el;
+    }
     const children = inst._renderedChildren || { '.0': el.props.children };
     return {
       nodeType: 'host',
       type: el.type,
       props: el.props,
-      instance: inst._instance || null,
+      instance: inst._instance || inst._hostNode || null,
       rendered: values(children).map(instanceToTree),
     };
   }
@@ -51,7 +59,7 @@ function instanceToTree(inst): ?RSTNode {
       nodeType: compositeTypeToNodeType(inst._compositeType),
       type: el.type,
       props: el.props,
-      instance: inst._instance || null,
+      instance: inst._instance || inst._hostNode || null,
       rendered: instanceToTree(inst._renderedComponent),
     };
   }
@@ -61,14 +69,16 @@ function instanceToTree(inst): ?RSTNode {
 
 
 function elementToTree(el: Element<*>): ?RSTNode {
-  if (typeof el !== 'object') {
+  if (el === null || typeof el !== 'object') {
     return el;
   }
   const { type, props } = el;
   const { children } = props;
   let rendered = null;
   if (Array.isArray(children)) {
-    rendered = children.map(elementToTree);
+    rendered = flatten(children, true).map(elementToTree);
+  } else if (children !== undefined) {
+    rendered = elementToTree(children);
   }
   return {
     nodeType: typeof type === 'string' ? 'host' : 'class',
@@ -78,6 +88,14 @@ function elementToTree(el: Element<*>): ?RSTNode {
     rendered,
   };
 }
+
+class SimpleWrapper extends React.Component {
+  render() {
+    return this.props.node || null;
+  }
+}
+
+SimpleWrapper.propTypes = { node: PropTypes.node.isRequired };
 
 class ReactFifteenAdapter extends EnzymeAdapter {
   // This is a method that will return a semver version string for the _react_ version that
@@ -93,17 +111,11 @@ class ReactFifteenAdapter extends EnzymeAdapter {
 
   createMountRenderer(options: RendererOptions): EnzymeRenderer {
     const domNode = options.attachTo || global.document.createElement('div');
-    let ReactWrapperComponent = null;
     let instance = null;
     return {
-      render(el: Element<*>) {
-        if (ReactWrapperComponent === null) {
-          ReactWrapperComponent = createWrapperComponent(el, options);
-        }
-        const wrappedEl = React.createElement(ReactWrapperComponent, {
-          Component: el.type,
-          props: el.props,
-          context: options.context,
+      render(el: Element<*>, context?: any) {
+        const wrappedEl = React.createElement(SimpleWrapper, {
+          node: el,
         });
         instance = ReactDOM.render(wrappedEl, domNode);
       },
@@ -118,7 +130,7 @@ class ReactFifteenAdapter extends EnzymeAdapter {
     let isDOM = false;
     let cachedNode = null;
     return {
-      render(el: Element<*>) {
+      render(el: Element<*>, context?: any) {
         cachedNode = el;
         /* eslint consistent-return: 0 */
         if (typeof el.type === 'string') {
@@ -137,7 +149,7 @@ class ReactFifteenAdapter extends EnzymeAdapter {
           nodeType: 'class',
           type: cachedNode.type,
           props: cachedNode.props,
-          instance: null,
+          instance: renderer._instance._instance,
           rendered: elementToTree(output),
         };
       },
@@ -161,7 +173,12 @@ class ReactFifteenAdapter extends EnzymeAdapter {
   // be pretty straightforward for people to implement.
   // eslint-disable-next-line class-methods-use-this, no-unused-vars
   nodeToElement(node: RSTNode): Element<*> {
+    if (!node || typeof node !== 'object') return null;
     return React.createElement(node.type, node.props);
+  }
+
+  elementToNode(element: Element<*>): RSTNode {
+    return elementToTree(element);
   }
 }
 

@@ -5,8 +5,9 @@ import objectValues from 'object.values';
 import functionName from 'function.prototype.name';
 
 import {
+  propsOfNode,
   childrenOfNode,
-} from './ShallowTraversal';
+} from './RSTTraversal';
 import {
   renderedChildrenOfInst,
 } from './MountedTraversal';
@@ -17,7 +18,7 @@ import {
 } from './react-compat';
 import {
   internalInstance,
-  propsOfNode,
+  // propsOfNode,
 } from './Utils';
 import { REACT013 } from './version';
 

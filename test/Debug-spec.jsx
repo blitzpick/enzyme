@@ -13,6 +13,10 @@ import {
   itIf,
 } from './_helpers';
 import { REACT013 } from '../src/version';
+import ReactFifteenAdapter from '../src/adapters/ReactFifteenAdapter';
+
+const adapter = new ReactFifteenAdapter();
+const debugElement = element => debugNode(adapter.elementToNode(element));
 
 describe('debug', () => {
 
@@ -39,11 +43,11 @@ describe('debug', () => {
   describe('debugNode(node)', () => {
 
     it('should render a node with no props or children as single single xml tag', () => {
-      expect(debugNode(<div />)).to.equal('<div />');
+      expect(debugElement(<div />)).to.equal('<div />');
     });
 
     it('should render props inline inline', () => {
-      expect(debugNode(
+      expect(debugElement(
         <div id="foo" className="bar" />,
       )).to.equal(
         '<div id="foo" className="bar" />',
@@ -51,7 +55,7 @@ describe('debug', () => {
     });
 
     it('should render children on newline and indented', () => {
-      expect(debugNode(
+      expect(debugElement(
         <div>
           <span />
         </div>,
@@ -63,7 +67,7 @@ describe('debug', () => {
     });
 
     it('should render mixed children', () => {
-      expect(debugNode(
+      expect(debugElement(
         <div>hello{'world'}</div>,
       )).to.equal(
         `<div>
@@ -74,7 +78,7 @@ describe('debug', () => {
     });
 
     it('should render props on root and children', () => {
-      expect(debugNode(
+      expect(debugElement(
         <div id="foo">
           <span id="bar" />
         </div>,
@@ -86,7 +90,7 @@ describe('debug', () => {
     });
 
     it('should render text on new line and indented', () => {
-      expect(debugNode(
+      expect(debugElement(
         <span>some text</span>,
       )).to.equal(
         `<span>
@@ -101,7 +105,7 @@ describe('debug', () => {
       }
       Foo.displayName = 'Bar';
 
-      expect(debugNode(
+      expect(debugElement(
         <div>
           <Foo />
         </div>,
@@ -118,7 +122,7 @@ describe('debug', () => {
         render() { return <div />; }
       }
 
-      expect(debugNode(
+      expect(debugElement(
         <div>
           <Foo />
         </div>,
@@ -134,7 +138,7 @@ describe('debug', () => {
 
       const Foo = () => <div />;
 
-      expect(debugNode(
+      expect(debugElement(
         <div>
           <Foo />
         </div>,
@@ -147,7 +151,7 @@ describe('debug', () => {
     });
 
     it('should render mapped children properly', () => {
-      expect(debugNode(
+      expect(debugElement(
         <div>
           <i>not in array</i>
           {['a', 'b', 'c']}
@@ -165,7 +169,7 @@ describe('debug', () => {
     });
 
     it('should render number children properly', () => {
-      expect(debugNode(
+      expect(debugElement(
         <div>
           {-1}
           {0}
@@ -181,7 +185,7 @@ describe('debug', () => {
     });
 
     it('renders html entities properly', () => {
-      expect(debugNode(
+      expect(debugElement(
         <div>&gt;</div>,
       )).to.equal(
 `<div>
@@ -191,7 +195,7 @@ describe('debug', () => {
     });
 
     it('should not render falsy children ', () => {
-      expect(debugNode(
+      expect(debugElement(
         <div id="foo">
           {false}
           {null}

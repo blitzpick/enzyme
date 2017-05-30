@@ -1422,11 +1422,7 @@ describeWithDOM('mount', () => {
       }
       const wrapper = mount(<Foo />);
       expect(wrapper.state()).to.eql({ id: 'foo' });
-      expect(() => wrapper.setState({ id: 'bar' }, 1)).to.throw(
-        Error,
-        'setState(...): Expected the last optional `callback` argument ' +
-        'to be a function. Instead received: number.',
-      );
+      expect(() => wrapper.setState({ id: 'bar' }, 1)).to.throw(Error);
     });
   });
 
@@ -3354,7 +3350,7 @@ describeWithDOM('mount', () => {
     });
   });
 
-  describe('.getNode()', () => {
+  describe('.instance()', () => {
     class Test extends React.Component {
       render() {
         return (
@@ -3368,12 +3364,12 @@ describeWithDOM('mount', () => {
 
     it('should return the wrapped component instance', () => {
       const wrapper = mount(<Test />);
-      expect(wrapper.getNode()).to.be.an.instanceof(Test);
+      expect(wrapper.instance()).to.be.an.instanceof(Test);
     });
 
     it('should throw when wrapping multiple elements', () => {
       const wrapper = mount(<Test />).find('span');
-      expect(() => wrapper.getNode()).to.throw(Error);
+      expect(() => wrapper.instance()).to.throw(Error);
     });
   });
 

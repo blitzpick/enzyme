@@ -1859,7 +1859,6 @@ describe('shallow', () => {
           </div>
         </div>,
       );
-
       expect(wrapper.find('.baz').parent().hasClass('bar')).to.equal(true);
     });
 
