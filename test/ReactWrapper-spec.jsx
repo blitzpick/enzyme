@@ -20,7 +20,7 @@ import {
   ReactWrapper,
 } from '../src';
 import { ITERATOR_SYMBOL } from '../src/Utils';
-import { REACT013, REACT014, REACT15 } from '../src/version';
+import { REACT013, REACT014, REACT15, REACT16 } from '../src/version';
 
 describeWithDOM('mount', () => {
   describe('context', () => {
@@ -1408,7 +1408,7 @@ describeWithDOM('mount', () => {
       expect(() => wrapper.setState({ id: 'bar' }, 1)).to.throw(Error);
     });
 
-    itIf(REACT15, 'should throw error when cb is not a function', () => {
+    itIf(REACT15 || REACT16, 'should throw error when cb is not a function', () => {
       class Foo extends React.Component {
         constructor(props) {
           super(props);
@@ -1492,7 +1492,7 @@ describeWithDOM('mount', () => {
       expect(wrapper.isEmptyRender()).to.equal(false);
     });
 
-    describeIf(REACT15, 'stateless function components', () => {
+    describeIf(REACT15 || REACT16, 'stateless function components', () => {
       itWithData(emptyRenderValues, 'when a component returns: ', (data) => {
         function Foo() {
           return data.value;
@@ -2835,7 +2835,7 @@ describeWithDOM('mount', () => {
     expect(rendered.html()).to.equal(null);
   });
 
-  itIf(REACT15, 'works with SFCs that return null', () => {
+  itIf(REACT15 || REACT16, 'works with SFCs that return null', () => {
     const Foo = () => null;
 
     const wrapper = mount(<Foo />);

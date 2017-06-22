@@ -5,6 +5,7 @@ require('babel-register');
 var IgnorePlugin = require('webpack').IgnorePlugin;
 var REACT013 = require('./src/version').REACT013;
 var REACT155 = require('./src/version').REACT155;
+var REACT16 = require('./src/version').REACT16;
 
 function getPlugins() {
   var plugins = [];
@@ -23,10 +24,10 @@ function getPlugins() {
   if (REACT013) {
     plugins.push(new IgnorePlugin(/react-dom/));
   }
-  if (REACT013 || REACT155) {
+  if (REACT013 || REACT155 || REACT16) {
     plugins.push(new IgnorePlugin(/react-addons-test-utils/));
   }
-  if (!REACT155) {
+  if (!REACT16) {
     plugins.push(new IgnorePlugin(/react-test-renderer/));
     plugins.push(new IgnorePlugin(/react-dom\/test-utils/));
     plugins.push(new IgnorePlugin(/create-react-class/));

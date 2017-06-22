@@ -36,7 +36,7 @@ import {
   batchedUpdates,
   isDOMComponentElement,
 } from './react-compat';
-import { REACT155 } from './version';
+import { REACT155, REACT16 } from './version';
 
 /**
  * Finds all nodes in the current wrapper nodes' render trees that match the provided predicate
@@ -101,7 +101,7 @@ function validateOptions(options) {
 
 function performBatchedUpdates(wrapper, fn) {
   const renderer = wrapper.root.renderer;
-  if (REACT155 && renderer.unstable_batchedUpdates) {
+  if ((REACT155 || REACT16) && renderer.unstable_batchedUpdates) {
     // React 15.5+ exposes batching on shallow renderer itself
     return renderer.unstable_batchedUpdates(fn);
   }

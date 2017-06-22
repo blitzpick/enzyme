@@ -7,7 +7,7 @@ import { createClass } from './_helpers/react-compat';
 import { shallow, render, ShallowWrapper } from '../src/';
 import { describeIf, itIf, itWithData, generateEmptyRenderData } from './_helpers';
 import { ITERATOR_SYMBOL, withSetStateAllowed } from '../src/Utils';
-import { REACT013, REACT014, REACT15 } from '../src/version';
+import { REACT013, REACT014, REACT15, REACT16 } from '../src/version';
 
 describe('shallow', () => {
   describe('context', () => {
@@ -1297,7 +1297,7 @@ describe('shallow', () => {
       expect(wrapper.isEmptyRender()).to.equal(false);
     });
 
-    describeIf(REACT15, 'stateless function components', () => {
+    describeIf(REACT15 || REACT16, 'stateless function components', () => {
       itWithData(emptyRenderValues, 'when a component returns: ', (data) => {
         function Foo() {
           return data.value;
@@ -2781,7 +2781,7 @@ describe('shallow', () => {
         ]);
       });
 
-      describeIf(REACT013 || REACT15, 'setContext', () => {
+      describeIf(REACT013 || REACT15 || REACT16, 'setContext', () => {
         it('calls expected methods when receiving new context', () => {
           wrapper.setContext({ foo: 'foo' });
           expect(spy.args).to.deep.equal([
@@ -3531,7 +3531,7 @@ describe('shallow', () => {
     expect(rendered.html()).to.equal(null);
   });
 
-  itIf(REACT15, 'works with SFCs that return null', () => {
+  itIf(REACT15 || REACT16, 'works with SFCs that return null', () => {
     const Foo = () => null;
 
     const wrapper = shallow(<Foo />);

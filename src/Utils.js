@@ -13,6 +13,7 @@ import {
 import {
   REACT013,
   REACT15,
+  REACT16,
 } from './version';
 
 export const ITERATOR_SYMBOL = typeof Symbol === 'function' && Symbol.iterator;
@@ -45,7 +46,7 @@ export function propsOfNode(node) {
   if (node && node._currentElement) {
     return (node._currentElement.props) || {};
   }
-  if (REACT15 && node) {
+  if ((REACT15 || REACT16) && node) {
     if (internalInstance(node) && internalInstance(node)._currentElement) {
       return (internalInstance(node)._currentElement.props) || {};
     }

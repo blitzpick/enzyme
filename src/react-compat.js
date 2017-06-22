@@ -6,7 +6,7 @@
   react/no-render-return-value: 0,
 */
 
-import { REACT013, REACT155 } from './version';
+import { REACT013, REACT155, REACT16 } from './version';
 
 let TestUtils;
 let createShallowRenderer;
@@ -112,7 +112,13 @@ if (REACT013) {
       shallowRendererFactory = TestUtils.createRenderer;
     }
   } catch (e) {
-    if (REACT155) {
+    if (REACT16) {
+      throw new Error(
+        'react-dom@16+ and react-test-renderer are implicit dependencies when using ' +
+        'react@16+ with enzyme. Please add the appropriate version to your ' +
+        'devDependencies. See https://github.com/airbnb/enzyme#installation',
+      );
+    } else if (REACT155) {
       throw new Error(
         'react-dom@15.5+ and react-test-renderer are implicit dependencies when using ' +
         'react@15.5+ with enzyme. Please add the appropriate version to your ' +

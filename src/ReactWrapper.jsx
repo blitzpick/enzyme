@@ -34,7 +34,7 @@ import {
 import {
   debugInsts,
 } from './Debug';
-import { REACT15 } from './version';
+import { REACT15, REACT16 } from './version';
 
 /**
  * Finds all nodes in the current wrapper nodes' render trees that match the provided predicate
@@ -434,7 +434,7 @@ class ReactWrapper {
       // Stateful components and stateless function components have different internal structures,
       // so we need to find the correct internal instance, and validate the rendered node type
       // equals 2, which is the `ReactNodeTypes.EMPTY` value.
-      if (REACT15) {
+      if (REACT15 || REACT16) {
         return internalInstanceOrComponent(n)._renderedNodeType === 2;
       }
 
