@@ -1,7 +1,15 @@
 import React from 'react';
-import ReactFifteenAdapter from '../src/adapters/ReactFifteenAdapter';
 import { expect } from 'chai';
 import prettyFormat from 'pretty-format';
+
+import { REACT013, REACT16 } from '../src/version';
+import configuration from '../src/configuration';
+import { itIf } from './_helpers';
+// import ReactFifteenAdapter from '../src/adapters/ReactFifteenAdapter';
+// TODO(lmr): run through this for each adapter
+// import ReactThirteenAdapter from '../src/adapters/ReactThirteenAdapter';
+
+const { adapter } = configuration.get();
 
 // Kind of hacky, but we nullify all the instances to test the tree structure
 // with jasmine's deep equality function, and test the instances separate. We
@@ -27,8 +35,70 @@ function cleanNode(node) {
 }
 
 describe('Adapter', () => {
-  it('renders simple components returning host components', () => {
-    const adapter = new ReactFifteenAdapter();
+
+  it('treats mixed children correctlyf', () => {
+    class Foo extends React.Component {
+      render() {
+        return (
+          <div>hello{4}{'world'}</div>
+        );
+      }
+    }
+
+    const options = { mode: 'mount' };
+    const renderer = adapter.createRenderer(options);
+
+    renderer.render(<Foo />);
+
+    const node = renderer.getNode();
+
+    cleanNode(node);
+
+    expect(prettyFormat(node)).to.equal(prettyFormat({
+      nodeType: 'class',
+      type: Foo,
+      props: {},
+      instance: null,
+      rendered: {
+        nodeType: 'host',
+        type: 'div',
+        props: {},
+        instance: null,
+        rendered: [
+          'hello',
+          REACT16 ? '4' : 4,
+          'world',
+        ],
+      },
+    }));
+  });
+
+  it('treats null renders correctly', () => {
+    class Foo extends React.Component {
+      render() {
+        return null;
+      }
+    }
+
+    const options = { mode: 'mount' };
+    const renderer = adapter.createRenderer(options);
+
+    renderer.render(<Foo />);
+
+    const node = renderer.getNode();
+
+    cleanNode(node);
+
+    expect(prettyFormat(node)).to.equal(prettyFormat({
+      nodeType: 'class',
+      type: Foo,
+      props: {},
+      instance: null,
+      rendered: null,
+    }));
+  });
+
+  itIf(!REACT013, 'renders simple components returning host components', () => {
     const options = { mode: 'mount' };
     const renderer = adapter.createRenderer(options);
 
@@ -55,8 +125,40 @@ describe('Adapter', () => {
     }));
   });
 
+  it('renders simple components returning host components', () => {
+    const options = { mode: 'mount' };
+    const renderer = adapter.createRenderer(options);
+
+    class Qoo extends React.Component {
+      render() {
+        return (
+          <span className="Qoo">Hello World!</span>
+        );
+      }
+    }
+
+    renderer.render(<Qoo />);
+
+    const node = renderer.getNode();
+
+    cleanNode(node);
+
+    expect(prettyFormat(node)).to.equal(prettyFormat({
+      nodeType: 'class',
+      type: Qoo,
+      props: {},
+      instance: null,
+      rendered: {
+        nodeType: 'host',
+        type: 'span',
+        props: { className: 'Qoo' },
+        instance: null,
+        rendered: ['Hello World!'],
+      },
+    }));
+  });
+
   it('handles null rendering components', () => {
-    const adapter = new ReactFifteenAdapter();
     const options = { mode: 'mount' };
     const renderer = adapter.createRenderer(options);
 
@@ -84,7 +186,7 @@ describe('Adapter', () => {
   });
 
 
-  it('renders complicated trees of composites and hosts', () => {
+  itIf(!REACT013, 'renders complicated trees of composites and hosts', () => {
     // SFC returning host. no children props.
     const Qoo = () => <span className="Qoo">Hello World!</span>;
 
@@ -119,7 +221,6 @@ describe('Adapter', () => {
       }
     }
 
-    const adapter = new ReactFifteenAdapter();
     const options = { mode: 'mount' };
     const renderer = adapter.createRenderer(options);
 
@@ -183,7 +284,116 @@ describe('Adapter', () => {
     );
   });
 
+  it('renders complicated trees of composites and hosts', () => {
+    // class returning host. no children props.
+    class Qoo extends React.Component {
+      render() {
+        return (
+          <span className="Qoo">Hello World!</span>
+        );
+      }
+    }
+
+    class Foo extends React.Component {
+      render() {
+        const { className, children } = this.props;
+        return (
+          <div className={`Foo ${className}`}>
+            <span className="Foo2">Literal</span>
+            {children}
+          </div>
+        );
+      }
+    }
+
+    // class composite returning composite. passes through children.
+    class Bar extends React.Component {
+      render() {
+        const { special, children } = this.props;
+        return (
+          <Foo className={special ? 'special' : 'normal'}>
+            {children}
+          </Foo>
+        );
+      }
+    }
+
+    // class composite return composite. no children props.
+    class Bam extends React.Component {
+      render() {
+        return (
+          <Bar special>
+            <Qoo />
+          </Bar>
+        );
+      }
+    }
+
+    const options = { mode: 'mount' };
+    const renderer = adapter.createRenderer(options);
+
+    renderer.render(<Bam />);
+
+    const tree = renderer.getNode();
+
+    // we test for the presence of instances before nulling them out
+    expect(tree.instance).to.be.instanceof(Bam);
+    expect(tree.rendered.instance).to.be.instanceof(Bar);
+
+    cleanNode(tree);
+
+    expect(prettyFormat(tree)).to.equal(
+      prettyFormat({
+        nodeType: 'class',
+        type: Bam,
+        props: {},
+        instance: null,
+        rendered: {
+          nodeType: 'class',
+          type: Bar,
+          props: { special: true },
+          instance: null,
+          rendered: {
+            nodeType: 'class',
+            type: Foo,
+            props: { className: 'special' },
+            instance: null,
+            rendered: {
+              nodeType: 'host',
+              type: 'div',
+              props: { className: 'Foo special' },
+              instance: null,
+              rendered: [
+                {
+                  nodeType: 'host',
+                  type: 'span',
+                  props: { className: 'Foo2' },
+                  instance: null,
+                  rendered: ['Literal'],
+                },
+                {
+                  nodeType: 'class',
+                  type: Qoo,
+                  props: {},
+                  instance: null,
+                  rendered: {
+                    nodeType: 'host',
+                    type: 'span',
+                    props: { className: 'Qoo' },
+                    instance: null,
+                    rendered: ['Hello World!'],
+                  },
+                },
+              ],
+            },
+          },
+        },
+      }),
+    );
+  });
+
   it('renders basic shallow as well', () => {
+    // eslint-disable-next-line react/require-render-return
     class Bar extends React.Component {
       constructor(props) {
         super(props);
@@ -194,9 +404,12 @@ describe('Adapter', () => {
       }
     }
 
-    const Foo = () => {
-      throw new Error('Foo render method should not be called');
-    };
+    // eslint-disable-next-line react/require-render-return
+    class Foo extends React.Component {
+      render() {
+        throw new Error('Foo render method should not be called');
+      }
+    }
 
     // class composite return composite. no children props.
     class Bam extends React.Component {
@@ -211,7 +424,6 @@ describe('Adapter', () => {
       }
     }
 
-    const adapter = new ReactFifteenAdapter();
     const options = { mode: 'shallow' };
     const renderer = adapter.createRenderer(options);
 

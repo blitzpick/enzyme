@@ -4,7 +4,7 @@ import React from 'react';
 import type { Element } from 'react';
 import ReactDOM from 'react-dom';
 import ReactDOMServer from 'react-dom/server';
-import TestUtils from 'react-dom/test-utils';
+import TestUtils from 'react-addons-test-utils';
 import PropTypes from 'prop-types';
 import values from 'object.values';
 import flatten from 'lodash/flatten';
@@ -72,6 +72,7 @@ function instanceToTree(inst): ?RSTNode {
   return null;
 }
 
+
 function elementToTree(el: Element<*>): ?RSTNode {
   if (el === null || typeof el !== 'object') {
     return el;
@@ -101,7 +102,7 @@ class SimpleWrapper extends React.Component {
 
 SimpleWrapper.propTypes = { node: PropTypes.node.isRequired };
 
-class ReactFifteenAdapter extends EnzymeAdapter {
+class ReactFifteenFourAdapter extends EnzymeAdapter {
   // This is a method that will return a semver version string for the _react_ version that
   // it expects enzyme to target. This will allow enzyme to know what to expect in the `instance`
   // that it finds on an RSTNode, as well as intelligently toggle behavior across react versions
@@ -181,14 +182,14 @@ class ReactFifteenAdapter extends EnzymeAdapter {
           withSetStateAllowed(() => {
             // TODO(lmr): create/use synthetic events
             // TODO(lmr): emulate React's event propagation
-            renderer.unstable_batchedUpdates(() => {
+            return ReactDOM.unstable_batchedUpdates(() => {
               handler(...args);
             });
           });
         }
       },
       batchedUpdates(fn) {
-        return withSetStateAllowed(() => renderer.unstable_batchedUpdates(fn));
+        return withSetStateAllowed(() => ReactDOM.unstable_batchedUpdates(fn));
       },
     };
   }
@@ -232,4 +233,4 @@ class ReactFifteenAdapter extends EnzymeAdapter {
   }
 }
 
-module.exports = ReactFifteenAdapter;
+module.exports = ReactFifteenFourAdapter;

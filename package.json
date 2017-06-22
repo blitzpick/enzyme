@@ -26,6 +26,7 @@
     "react:14": "npm run react:clean && npm i react@0.14 react-dom@0.14 react-addons-test-utils@0.14 && npm install",
     "react:15.4": "npm run react:clean && npm i react@15.4 react-dom@15.4 react-addons-test-utils@15.4 && npm install",
     "react:15": "npm run react:clean && npm i react@15 react-dom@15 create-react-class@15 react-test-renderer@^15.5.4 && npm install",
+    "react:16": "npm run react:clean && npm i react@16.0.0-alpha.13 react-dom@16.0.0-alpha.13 create-react-class@15.6.0 react-test-renderer@16.0.0-alpha.13 && npm install",
     "docs:clean": "rimraf _book",
     "docs:prepare": "gitbook install",
     "docs:build": "npm run docs:prepare && gitbook build",
@@ -63,6 +64,7 @@
     "object.entries": "^1.0.3",
     "object.values": "^1.0.3",
     "prop-types": "^15.5.4",
+    "raf": "^3.3.2",
     "uuid": "^2.0.3"
   },
   "devDependencies": {
@@ -104,6 +106,6 @@
     "webpack": "^1.13.3"
   },
   "peerDependencies": {
-    "react": "0.13.x || 0.14.x || ^15.0.0-0 || 15.x || 16.x"
+    "react": "0.13.x || 0.14.x || ^15.0.0-0 || 15.x || 16.x || 16.0.0-alpha.13"
   }
 }

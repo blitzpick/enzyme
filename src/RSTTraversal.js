@@ -1,5 +1,6 @@
 // import React from 'react';
 import isEmpty from 'lodash/isEmpty';
+import flatten from 'lodash/flatten';
 import isSubset from 'is-subset';
 import functionName from 'function.prototype.name';
 import {
@@ -19,7 +20,7 @@ export function propsOfNode(node) {
 
 export function childrenOfNode(node) {
   if (!node) return [];
-  return Array.isArray(node.rendered) ? node.rendered : [node.rendered];
+  return Array.isArray(node.rendered) ? flatten(node.rendered, true) : [node.rendered];
   // const maybeArray = propsOfNode(node).children;
   // const result = [];
   // React.Children.forEach(maybeArray, (child) => {
@@ -115,7 +116,7 @@ export function buildPredicate(selector) {
           return node => nodeHasId(node, selector.slice(1));
 
         case SELECTOR.PROP_TYPE: {
-          const propKey = selector.split(/\[([a-zA-Z0-9\-_]*?)(=|])/)[1];
+          const propKey = selector.split(/\[([a-zA-Z][a-zA-Z_\d\-:]*?)(=|])/)[1];
           const propValue = selector.split(/=(.*?)]/)[1];
 
           return node => nodeHasProperty(node, propKey, propValue);

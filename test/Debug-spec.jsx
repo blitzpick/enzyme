@@ -13,9 +13,10 @@ import {
   itIf,
 } from './_helpers';
 import { REACT013 } from '../src/version';
-import ReactFifteenAdapter from '../src/adapters/ReactFifteenAdapter';
+import configuration from '../src/configuration';
 
-const adapter = new ReactFifteenAdapter();
+const { adapter } = configuration.get();
+
 const debugElement = element => debugNode(adapter.elementToNode(element));
 
 describe('debug', () => {

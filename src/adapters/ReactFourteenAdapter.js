@@ -4,7 +4,7 @@ import React from 'react';
 import type { Element } from 'react';
 import ReactDOM from 'react-dom';
 import ReactDOMServer from 'react-dom/server';
-import TestUtils from 'react-dom/test-utils';
+import TestUtils from 'react-addons-test-utils';
 import PropTypes from 'prop-types';
 import values from 'object.values';
 import flatten from 'lodash/flatten';
@@ -16,14 +16,14 @@ import {
   withSetStateAllowed,
 } from './Utils';
 
-function compositeTypeToNodeType(type) {
-  switch (type) {
-    case 0: return 'class';
-    case 2: return 'function';
-    default:
-      console.log('LELAND: Unknown composite type', type);
+function typeToNodeType(type) {
+  if (typeof type === 'function') {
+    if (typeof type.prototype.render === 'function') {
       return 'class';
+    }
+    return 'function';
   }
+  return 'host';
 }
 
 function instanceToTree(inst): ?RSTNode {
@@ -34,19 +34,11 @@ function instanceToTree(inst): ?RSTNode {
   if (!el) {
     return null;
   }
-  // if (!inst._instance) {
-  //   console.log(inst);
-  // }
-  if (inst._renderedChildren) {
-    return {
-      nodeType: inst._hostNode ? 'host' : compositeTypeToNodeType(inst._compositeType),
-      type: el.type,
-      props: el.props,
-      instance: inst._instance || inst._hostNode || null,
-      rendered: values(inst._renderedChildren).map(instanceToTree),
-    };
+  if (typeof el !== 'object') {
+    return el;
   }
-  if (inst._hostNode) {
+  if (inst._tag) {
+    // console.log('_tag', inst);
     if (typeof el !== 'object') {
       return el;
     }
@@ -55,22 +47,24 @@ function instanceToTree(inst): ?RSTNode {
       nodeType: 'host',
       type: el.type,
       props: el.props,
-      instance: inst._instance || inst._hostNode || null,
+      instance: ReactDOM.findDOMNode(inst.getPublicInstance()) || null,
       rendered: values(children).map(instanceToTree),
     };
   }
   if (inst._renderedComponent) {
+    // console.log('renderedComponent', inst);
     return {
-      nodeType: compositeTypeToNodeType(inst._compositeType),
+      nodeType: typeToNodeType(el.type),
       type: el.type,
       props: el.props,
-      instance: inst._instance || inst._hostNode || null,
+      instance: inst._instance || null,
       rendered: instanceToTree(inst._renderedComponent),
     };
   }
   console.log('LELAND: fallthrough', inst);
   return null;
 }
+
 
 function elementToTree(el: Element<*>): ?RSTNode {
   if (el === null || typeof el !== 'object') {
@@ -181,14 +175,14 @@ class ReactFifteenAdapter extends EnzymeAdapter {
           withSetStateAllowed(() => {
             // TODO(lmr): create/use synthetic events
             // TODO(lmr): emulate React's event propagation
-            renderer.unstable_batchedUpdates(() => {
+            ReactDOM.unstable_batchedUpdates(() => {
               handler(...args);
             });
           });
         }
       },
       batchedUpdates(fn) {
-        return withSetStateAllowed(() => renderer.unstable_batchedUpdates(fn));
+        return withSetStateAllowed(() => ReactDOM.unstable_batchedUpdates(fn));
       },
     };
   }

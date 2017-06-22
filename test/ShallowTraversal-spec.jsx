@@ -16,7 +16,7 @@ import {
 import { describeIf } from './_helpers';
 import { REACT013 } from '../src/version';
 
-describe('ShallowTraversal', () => {
+describe.skip('ShallowTraversal', () => {
 
   describe('splitSelector', () => {
     const fn = splitSelector;

@@ -2,29 +2,52 @@
 /* eslint no-underscore-dangle: 0, class-methods-use-this: 0 */
 import React from 'react';
 import type { Element } from 'react';
-import ReactDOM from 'react-dom';
-import ReactDOMServer from 'react-dom/server';
-import TestUtils from 'react-dom/test-utils';
+import ReactAddons from 'react/addons';
 import PropTypes from 'prop-types';
 import values from 'object.values';
 import flatten from 'lodash/flatten';
 import type { EnzymeRenderer, RSTNode, RendererOptions } from './types';
 import EnzymeAdapter from './EnzymeAdapter';
+import ReactContext from 'react/lib/ReactContext';
 import {
   mapNativeEventNames,
   propFromEvent,
   withSetStateAllowed,
 } from './Utils';
+// this fixes some issues in React 0.13 with setState and jsdom...
+// see issue: https://github.com/airbnb/enzyme/issues/27
+require('react/lib/ExecutionEnvironment').canUseDOM = true;
 
-function compositeTypeToNodeType(type) {
-  switch (type) {
-    case 0: return 'class';
-    case 2: return 'function';
-    default:
-      console.log('LELAND: Unknown composite type', type);
-      return 'class';
+const { TestUtils, batchedUpdates } = ReactAddons.addons;
+
+const getEmptyElementType = (() => {
+  let EmptyElementType = null;
+  class Foo extends React.Component {
+    render() {
+      return null;
+    }
   }
-}
+
+  return () => {
+    if (EmptyElementType === null) {
+      const instance = TestUtils.renderIntoDocument(<Foo />);
+      EmptyElementType = instance._reactInternalInstance._renderedComponent._currentElement.type;
+    }
+    return EmptyElementType;
+  };
+})();
+
+const createShallowRenderer = function createRendererCompatible() {
+  const renderer = TestUtils.createRenderer();
+  renderer.render = (originalRender => function contextCompatibleRender(node, context = {}) {
+    ReactContext.current = context;
+    originalRender.call(this, React.createElement(node.type, node.props), context);
+    ReactContext.current = {};
+    return renderer.getRenderOutput();
+  })(renderer.render);
+  return renderer;
+};
+
 
 function instanceToTree(inst): ?RSTNode {
   if (typeof inst !== 'object') {
@@ -34,36 +57,28 @@ function instanceToTree(inst): ?RSTNode {
   if (!el) {
     return null;
   }
-  // if (!inst._instance) {
-  //   console.log(inst);
-  // }
-  if (inst._renderedChildren) {
-    return {
-      nodeType: inst._hostNode ? 'host' : compositeTypeToNodeType(inst._compositeType),
-      type: el.type,
-      props: el.props,
-      instance: inst._instance || inst._hostNode || null,
-      rendered: values(inst._renderedChildren).map(instanceToTree),
-    };
+  if (typeof el !== 'object') {
+    return el;
   }
-  if (inst._hostNode) {
-    if (typeof el !== 'object') {
-      return el;
-    }
-    const children = inst._renderedChildren || { '.0': el.props.children };
+  if (el.type === getEmptyElementType()) {
+    return null;
+  }
+  if (typeof el.type === 'string') {
+    const innerInst = inst._renderedComponent;
+    const children = innerInst._renderedChildren || { '.0': el._store.props.children };
     return {
       nodeType: 'host',
       type: el.type,
-      props: el.props,
-      instance: inst._instance || inst._hostNode || null,
+      props: el._store.props,
+      instance: inst._instance.getDOMNode(),
       rendered: values(children).map(instanceToTree),
     };
   }
   if (inst._renderedComponent) {
     return {
-      nodeType: compositeTypeToNodeType(inst._compositeType),
+      nodeType: 'class',
       type: el.type,
-      props: el.props,
+      props: el._store.props,
       instance: inst._instance || inst._hostNode || null,
       rendered: instanceToTree(inst._renderedComponent),
     };
@@ -71,6 +86,7 @@ function instanceToTree(inst): ?RSTNode {
   console.log('LELAND: fallthrough', inst);
   return null;
 }
+
 
 function elementToTree(el: Element<*>): ?RSTNode {
   if (el === null || typeof el !== 'object') {
@@ -101,7 +117,7 @@ class SimpleWrapper extends React.Component {
 
 SimpleWrapper.propTypes = { node: PropTypes.node.isRequired };
 
-class ReactFifteenAdapter extends EnzymeAdapter {
+class ReactThirteenAdapter extends EnzymeAdapter {
   // This is a method that will return a semver version string for the _react_ version that
   // it expects enzyme to target. This will allow enzyme to know what to expect in the `instance`
   // that it finds on an RSTNode, as well as intelligently toggle behavior across react versions
@@ -110,7 +126,7 @@ class ReactFifteenAdapter extends EnzymeAdapter {
   // a version of the API that they are committing to.
   // eslint-disable-next-line class-methods-use-this
   getTargetApiVersion(): string {
-    return '15.5.x'; // TODO(lmr): do we need a separate adapter for 15.5.x and 15.4.x?
+    return '0.13.x'; // TODO(lmr): do we need a separate adapter for 15.5.x and 15.4.x?
   }
 
   createMountRenderer(options: RendererOptions): EnzymeRenderer {
@@ -121,10 +137,10 @@ class ReactFifteenAdapter extends EnzymeAdapter {
         const wrappedEl = React.createElement(SimpleWrapper, {
           node: el,
         });
-        instance = ReactDOM.render(wrappedEl, domNode);
+        instance = React.render(wrappedEl, domNode);
       },
       unmount() {
-        ReactDOM.unmountComponentAtNode(domNode);
+        React.unmountComponentAtNode(domNode);
       },
       getNode(): ?RSTNode {
         return instanceToTree(instance._reactInternalInstance._renderedComponent);
@@ -136,16 +152,16 @@ class ReactFifteenAdapter extends EnzymeAdapter {
           throw new TypeError(`ReactWrapper::simulate() event '${event}' does not exist`);
         }
         // eslint-disable-next-line react/no-find-dom-node
-        eventFn(ReactDOM.findDOMNode(node.instance), mock);
+        eventFn(React.findDOMNode(node.instance), mock);
       },
       batchedUpdates(fn) {
-        return ReactDOM.unstable_batchedUpdates(fn);
+        return batchedUpdates(fn);
       },
     };
   }
 
   createShallowRenderer(options: RendererOptions): EnzymeRenderer {
-    const renderer = TestUtils.createRenderer();
+    const renderer = createShallowRenderer();
     let isDOM = false;
     let cachedNode = null;
     return {
@@ -181,14 +197,14 @@ class ReactFifteenAdapter extends EnzymeAdapter {
           withSetStateAllowed(() => {
             // TODO(lmr): create/use synthetic events
             // TODO(lmr): emulate React's event propagation
-            renderer.unstable_batchedUpdates(() => {
+            batchedUpdates(() => {
               handler(...args);
             });
           });
         }
       },
       batchedUpdates(fn) {
-        return withSetStateAllowed(() => renderer.unstable_batchedUpdates(fn));
+        return withSetStateAllowed(() => batchedUpdates(fn));
       },
     };
   }
@@ -196,7 +212,7 @@ class ReactFifteenAdapter extends EnzymeAdapter {
   createStringRenderer(options) {
     return {
       render(el: Element<*>, context?: any) {
-        return ReactDOMServer.renderToStaticMarkup(el);
+        return React.renderToStaticMarkup(el);
       },
     };
   }
@@ -228,8 +244,8 @@ class ReactFifteenAdapter extends EnzymeAdapter {
   }
 
   nodeToHostNode(node: RSTNode): any {
-    return ReactDOM.findDOMNode(node.instance);
+    return React.findDOMNode(node.instance);
   }
 }
 
-module.exports = ReactFifteenAdapter;
+module.exports = ReactThirteenAdapter;

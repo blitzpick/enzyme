@@ -56,6 +56,9 @@ export type EnzymeRenderer = {
   // both initial render and updates for the renderer.
   render(el: Element<*>): void;
 
+  // unmounts the renderer
+  unmount(): void;
+
   // retrieve a frozen-in-time copy of the RST.
   getNode(): ?RSTNode;
 };

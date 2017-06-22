@@ -6,27 +6,8 @@ import compact from 'lodash/compact';
 
 import ComplexSelector from './ComplexSelector';
 import createWrapperComponent from './ReactWrapperComponent';
-// import {
-  // instHasClassName,
-  // childrenOfInst,
-  // parentsOfInst,
-  // buildInstPredicate,
-  // instEqual,
-  // instMatches,
-  // treeFilter,
-  // getNode,
-  // internalInstanceOrComponent,
-// } from './MountedTraversal';
 import {
-  // renderWithOptions,
-  Simulate,
-  findDOMNode,
-  unmountComponentAtNode, // TODO(lmr): pass these through to the adapter
-} from './react-compat';
-import {
-  mapNativeEventNames,
   containsChildrenSubArray,
-  // propsOfNode,
   typeOfNode,
   displayNameOfNode,
   ITERATOR_SYMBOL,
@@ -36,19 +17,15 @@ import {
 import {
   debugNodes,
 } from './Debug';
-// import { REACT15 } from './version';
 import {
   propsOfNode,
-  getTextFromNode,
   hasClassName,
   childrenOfNode,
   parentsOfNode,
   treeFilter,
   buildPredicate,
 } from './RSTTraversal';
-import ReactFifteenAdapter from './adapters/ReactFifteenAdapter';
-
-const adapter = new ReactFifteenAdapter();
+import configuration from './configuration';
 
 const noop = () => {};
 
@@ -77,6 +54,23 @@ function filterWhereUnwrapped(wrapper, predicate) {
   return wrapper.wrap(compact(wrapper.getNodes().filter(predicate)));
 }
 
+function getFromRenderer(renderer) {
+  const root = renderer.getNode();
+  return {
+    component: root.instance,
+    node: root.rendered,
+  };
+}
+
+function getAdapter(options) {
+  if (options.adapter) {
+    return options.adapter;
+  }
+  const adapter = configuration.get().adapter;
+  // TODO(lmr): warn about no adapter being configured
+  return adapter;
+}
+
 /**
  * @class ReactWrapper
  */
@@ -90,7 +84,7 @@ class ReactWrapper {
     }
 
     if (!root) {
-      this.renderer = adapter.createRenderer({ mode: 'mount', ...options });
+      this.renderer = getAdapter(options).createRenderer({ mode: 'mount', ...options });
       const ReactWrapperComponent = createWrapperComponent(nodes, options);
       this.renderer.render(
         <ReactWrapperComponent
@@ -100,28 +94,16 @@ class ReactWrapper {
         />,
       );
       this.root = this;
-      const node = this.renderer.getNode();
-      this.component = node.instance;
-      this.node = node.rendered;
-      this.nodes = [node.rendered];
+      const {
+        component,
+        node,
+      } = getFromRenderer(this.renderer);
+      this.component = component;
+      this.node = node;
+      this.nodes = [node];
       this.length = 1;
-
-
-      /*
-      const ReactWrapperComponent = createWrapperComponent(nodes, options);
-      this.component = renderWithOptions(
-        <ReactWrapperComponent
-          Component={nodes.type}
-          props={nodes.props}
-          context={options.context}
-        />,
-      options);
-      this.root = this;
-      this.node = this.component.getWrappedComponent();
-      this.nodes = [this.node];
-      this.length = 1;*/
     } else {
-      this.renderer = null;
+      this.renderer = root.renderer;
       this.root = root;
       if (!nodes) {
         this.node = null;
@@ -136,12 +118,16 @@ class ReactWrapper {
       this.length = this.nodes.length;
       this.component = null;
     }
-    this.options = options;
+    this.options = root ? root.options : options;
     this.complexSelector = new ComplexSelector(
       buildPredicate,
       findWhereUnwrapped,
       childrenOfNode,
     );
+  }
+
+  rendered() {
+    return this.single('rendered', n => this.wrap(n.rendered));
   }
 
   /**
@@ -178,7 +164,8 @@ class ReactWrapper {
    * @returns {DOMComponent}
    */
   getDOMNode() {
-    return this.single('getDOMNode', n => findDOMNode(n.instance));
+    const adapter = getAdapter(this.options);
+    return this.single('getDOMNode', n => adapter.nodeToHostNode(n));
   }
 
   /**
@@ -194,7 +181,7 @@ class ReactWrapper {
     if (this.root !== this) {
       throw new Error('ReactWrapper::ref(refname) can only be called on the root');
     }
-    return this.wrap(this.instance().refs[refname]);
+    return this.instance().refs[refname];
   }
 
   /**
@@ -211,11 +198,10 @@ class ReactWrapper {
    * @returns {ReactComponent}
    */
   instance() {
-    if (this.root !== this) {
-      throw new Error('ReactWrapper::instance() can only be called on the root');
+    if (this.length !== 1) {
+      throw new Error('ReactWrapper::instance() can only be called on single nodes');
     }
     return this.node.instance;
-    // return this.component.getInstance();
   }
 
   /**
@@ -232,11 +218,13 @@ class ReactWrapper {
       throw new Error('ReactWrapper::update() can only be called on the root');
     }
     this.single('update', () => {
-      const node = this.renderer.getNode();
-      this.component = node.instance;
-      this.node = node.rendered;
-      this.nodes = [node.rendered];
-      // this.component.forceUpdate();
+      const {
+        component,
+        node,
+      } = getFromRenderer(this.renderer);
+      this.component = component;
+      this.node = node;
+      this.nodes = [node];
     });
     return this;
   }
@@ -487,15 +475,7 @@ class ReactWrapper {
    */
   isEmptyRender() {
     return this.single('isEmptyRender', (n) => {
-      // Stateful components and stateless function components have different internal structures,
-      // so we need to find the correct internal instance, and validate the rendered node type
-      // equals 2, which is the `ReactNodeTypes.EMPTY` value.
-      // if (REACT15) {
-      //   return internalInstanceOrComponent(n)._renderedNodeType === 2;
-      // }
       return n.rendered === null;
-
-      // return findDOMNode(n.instance) === null;
     });
   }
 
@@ -544,7 +524,8 @@ class ReactWrapper {
    * @returns {String}
    */
   text() {
-    return this.single('text', n => findDOMNode(n.instance).textContent);
+    const adapter = getAdapter(this.options);
+    return this.single('text', n => adapter.nodeToHostNode(n).textContent);
   }
 
   /**
@@ -556,7 +537,9 @@ class ReactWrapper {
    */
   html() {
     return this.single('html', (n) => {
-      const node = findDOMNode(n.instance);
+      if (n === null) return null;
+      const adapter = getAdapter(this.options);
+      const node = adapter.nodeToHostNode(n);
       return node === null ? null :
         node.outerHTML.replace(/\sdata-(reactid|reactroot)+="([^"]*)+"/g, '');
     });
@@ -584,13 +567,8 @@ class ReactWrapper {
    */
   simulate(event, mock = {}) {
     this.single('simulate', (n) => {
-      const mappedEvent = mapNativeEventNames(event);
-      const eventFn = Simulate[mappedEvent];
-      if (!eventFn) {
-        throw new TypeError(`ReactWrapper::simulate() event '${event}' does not exist`);
-      }
-
-      eventFn(findDOMNode(n.instance), mock);
+      this.renderer.simulateEvent(n, event, mock);
+      this.update();
     });
     return this;
   }
@@ -639,7 +617,11 @@ class ReactWrapper {
     if (this.root !== this) {
       throw new Error('ReactWrapper::context() can only be called on the root');
     }
-    const _context = this.single('context', () => this.instance().context);
+    const instance = this.single('context', () => this.instance());
+    if (instance === null) {
+      throw new Error('ReactWrapper::context() can only be called on components with instances');
+    }
+    const _context = instance.context;
     if (name !== undefined) {
       return _context[name];
     }
@@ -653,7 +635,7 @@ class ReactWrapper {
    * @returns {ReactWrapper}
    */
   children(selector) {
-    const allChildren = this.flatMap(n => childrenOfNode(n.getNode().rendered).filter(x => typeof x === 'object'));
+    const allChildren = this.flatMap(n => childrenOfNode(n.getNode()).filter(x => typeof x === 'object'));
     return selector ? allChildren.filter(selector) : allChildren;
   }
 
@@ -1030,7 +1012,7 @@ class ReactWrapper {
         '`mount()`.',
       );
     }
-    unmountComponentAtNode(this.options.attachTo);
+    this.renderer.unmount();
   }
 }
 
